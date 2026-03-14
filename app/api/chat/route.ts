@@ -1,20 +1,20 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { SYSTEM_PROMPT } from "@/app/lib/systemPrompt";
 
 export const runtime = "edge";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 export async function POST(req: Request) {
-  const { messages } = await req.json();
+  const { messages, systemPrompt, model, imageData } = await req.json();
 
-  const model = genAI.getGenerativeModel({
-    model: "gemini-1.5-flash-latest",
-    systemInstruction: SYSTEM_PROMPT,
+  const selectedModel = model || "gemini-2.0-flash";
+
+  const geminiModel = genAI.getGenerativeModel({
+    model: selectedModel,
+    systemInstruction: systemPrompt || "You are SupremeAI — the most powerful AI assistant. Above All.",
   });
 
   const filtered = messages.filter((m: any) => m.role !== "system");
-
   const firstUserIndex = filtered.findIndex((m: any) => m.role === "user");
   const validMessages = firstUserIndex >= 0 ? filtered.slice(firstUserIndex) : filtered;
 
@@ -23,13 +23,27 @@ export async function POST(req: Request) {
     parts: [{ text: msg.content }],
   }));
 
-  const lastMessage = validMessages[validMessages.length - 1].content;
+  const lastMessage = validMessages[validMessages.length - 1];
 
-  const chat = model.startChat({ history });
-  const result = await chat.sendMessageStream(lastMessage);
+  const chat = geminiModel.startChat({ history });
+
+  // Image support
+  let parts: any[] = [{ text: lastMessage.content }];
+  if (imageData) {
+    parts = [
+      { text: lastMessage.content || "What's in this image?" },
+      {
+        inlineData: {
+          mimeType: imageData.mimeType,
+          data: imageData.base64,
+        },
+      },
+    ];
+  }
+
+  const result = await chat.sendMessageStream(parts);
 
   const encoder = new TextEncoder();
-
   const stream = new ReadableStream({
     async start(controller) {
       for await (const chunk of result.stream) {
