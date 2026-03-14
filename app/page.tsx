@@ -30,9 +30,11 @@ export default function Home() {
 
   useEffect(() => {
     setMounted(true);
-    const user = storage.getUser();
-    if (!user) setShowWelcome(true);
-    else setUserName(user.name);
+
+    // ✅ Har baar name puchega
+    storage.saveUser(null);
+    setShowWelcome(true);
+
     const settings = storage.getSettings();
     setIsDark(settings.theme === "dark");
     setSoundEnabled(settings.sound);
