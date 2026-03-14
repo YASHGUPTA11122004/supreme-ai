@@ -48,10 +48,14 @@ export const storage = {
     } catch { return null; }
   },
 
-  saveUser(user: UserProfile): void {
+  saveUser(user: UserProfile | null): void {
     if (typeof window === "undefined") return;
     try {
-      localStorage.setItem(USER_KEY, JSON.stringify(user));
+      if (user === null) {
+        localStorage.removeItem(USER_KEY);
+      } else {
+        localStorage.setItem(USER_KEY, JSON.stringify(user));
+      }
     } catch {}
   },
 
