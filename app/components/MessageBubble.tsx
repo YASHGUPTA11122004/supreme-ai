@@ -28,17 +28,30 @@ export default function MessageBubble({ message }: { message: Message }) {
             code({ node, inline, className, children, ...props }: any) {
               const match = /language-(\w+)/.exec(className || "");
               return !inline && match ? (
-                <SyntaxHighlighter style={oneDark} language={match[1]} PreTag="div" className="rounded-lg my-2 text-xs" {...props}>
+                <SyntaxHighlighter
+                  style={oneDark}
+                  language={match[1]}
+                  PreTag="div"
+                  className="rounded-lg my-2 text-xs"
+                  {...props}
+                >
                   {String(children).replace(/\n$/, "")}
                 </SyntaxHighlighter>
               ) : (
-                <code className="bg-gray-900 rounded px-1.5 py-0.5 text-violet-300 text-xs font-mono" {...props}>
+                <code
+                  className="bg-gray-900 rounded px-1.5 py-0.5 text-violet-300 text-xs font-mono"
+                  {...props}
+                >
                   {children}
                 </code>
               );
             },
-            strong: ({ children }) => <strong className="text-violet-300 font-bold">{children}</strong>,
-            p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>,
+            strong: ({ children }) => (
+              <strong className="text-violet-300 font-bold">{children}</strong>
+            ),
+            p: ({ children }) => (
+              <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>
+            ),
           }}
         >
           {message.content}
@@ -52,12 +65,3 @@ export default function MessageBubble({ message }: { message: Message }) {
     </div>
   );
 }
-```
-
----
-
-## Commit Order:
-```
-1. app/api/chat/route.ts      → commit
-2. app/components/ChatWindow.tsx  → commit
-3. app/components/MessageBubble.tsx → commit
