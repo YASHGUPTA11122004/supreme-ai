@@ -37,31 +37,42 @@ export default function ModelSelector({
 
       {isOpen && (
         <>
+          {/* Backdrop */}
           <div className="fixed inset-0 z-40" onClick={onToggle} />
+
+          {/* Dropdown */}
           <div className={`absolute top-10 left-0 rounded-xl shadow-2xl z-50
-            min-w-[200px] overflow-hidden border
+            min-w-[220px] overflow-hidden border
             ${isDark
-              ? "bg-gray-900/95 border-white/10 backdrop-blur-xl"
+              ? "bg-gray-950 border-white/10"
               : "bg-white border-gray-200 shadow-xl"
             }`}>
             {MODELS.map(model => (
               <button
                 key={model.id}
                 onClick={() => { onChange(model.id); onToggle(); }}
-                className={`w-full text-left px-4 py-3 transition-all flex items-center gap-3
+                className={`w-full text-left px-4 py-3 transition-all
+                  flex items-center gap-3
                   ${selected === model.id
-                    ? isDark ? "bg-violet-600/20 text-violet-300" : "bg-violet-50 text-violet-700"
-                    : isDark ? "text-gray-300 hover:bg-white/5" : "text-gray-700 hover:bg-gray-50"
+                    ? isDark
+                      ? "bg-violet-600/20 text-violet-300"
+                      : "bg-violet-50 text-violet-700"
+                    : isDark
+                      ? "text-gray-300 hover:bg-white/5"
+                      : "text-gray-700 hover:bg-gray-50"
                   }`}
               >
                 <span className="text-lg">{model.emoji}</span>
                 <div>
                   <div className="text-sm font-semibold">{model.name}</div>
-                  <div className={`text-xs ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+                  <div className={`text-xs
+                    ${isDark ? "text-gray-500" : "text-gray-400"}`}>
                     {model.desc}
                   </div>
                 </div>
-                {selected === model.id && <span className="ml-auto text-violet-400">✓</span>}
+                {selected === model.id && (
+                  <span className="ml-auto text-violet-400">✓</span>
+                )}
               </button>
             ))}
           </div>
@@ -70,3 +81,10 @@ export default function ModelSelector({
     </div>
   );
 }
+```
+
+---
+
+## Commit Karo:
+```
+app/components/ModelSelector.tsx ← REPLACE
