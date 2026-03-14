@@ -1,7 +1,5 @@
 "use client";
 
-import { useRef, useEffect, useState } from "react";
-
 export const THEMES = [
   { id: "purple", name: "Purple", primary: "#7C3AED" },
   { id: "blue", name: "Ocean", primary: "#2563EB" },
@@ -20,20 +18,9 @@ export default function ChatThemes({
   isOpen: boolean;
   onToggle: () => void;
 }) {
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const [pos, setPos] = useState({ top: 0, left: 0 });
-
-  useEffect(() => {
-    if (isOpen && btnRef.current) {
-      const rect = btnRef.current.getBoundingClientRect();
-      setPos({ top: rect.bottom + 8, left: rect.left });
-    }
-  }, [isOpen]);
-
   return (
-    <div className="relative">
+    <div className="relative z-50">
       <button
-        ref={btnRef}
         onClick={onToggle}
         className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs
           transition-all border font-medium
@@ -50,37 +37,26 @@ export default function ChatThemes({
       {isOpen && (
         <>
           <div className="fixed inset-0 z-40" onClick={onToggle} />
-          <div
-            className={`fixed z-50 rounded-xl shadow-2xl p-3 border w-48
-              ${isDark
-                ? "bg-[#0d0d1a] border-white/10"
-                : "bg-white border-gray-200"
-              }`}
-            style={{ top: pos.top, left: pos.left }}
+          <div className={`absolute top-10 right-0 rounded-xl shadow-2xl z-50
+            p-3 border w-44
+            ${isDark ? "bg-[#111122] border-violet-900/50" : "bg-white border-gray-200"}`}
           >
             <div className="grid grid-cols-2 gap-2">
               {THEMES.map(theme => (
                 <button
                   key={theme.id}
                   onClick={() => { onChange(theme.id); onToggle(); }}
-                  className={`flex items-center gap-2 p-2 rounded-xl
-                    transition-all hover:scale-105 w-full
+                  className={`flex items-center gap-2 p-2 rounded-xl transition-all w-full
                     ${selected === theme.id
                       ? isDark ? "bg-white/10" : "bg-gray-100"
                       : isDark ? "hover:bg-white/5" : "hover:bg-gray-50"
                     }`}
                 >
-                  <div
-                    className="w-5 h-5 rounded-md shrink-0"
-                    style={{ background: theme.primary }}
-                  />
-                  <span className={`text-xs truncate
-                    ${isDark ? "text-gray-300" : "text-gray-600"}`}>
+                  <div className="w-5 h-5 rounded-md shrink-0" style={{ background: theme.primary }} />
+                  <span className={`text-xs truncate ${isDark ? "text-gray-300" : "text-gray-600"}`}>
                     {theme.name}
                   </span>
-                  {selected === theme.id && (
-                    <span className="text-xs text-violet-400 ml-auto">✓</span>
-                  )}
+                  {selected === theme.id && <span className="text-xs text-violet-400 ml-auto">✓</span>}
                 </button>
               ))}
             </div>
