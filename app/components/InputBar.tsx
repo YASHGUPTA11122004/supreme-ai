@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, type ChangeEvent, type FormEvent } from "react";
 
-interface Props {
+interface InputBarProps {
   input: string;
   isLoading: boolean;
   isDark: boolean;
@@ -12,7 +12,7 @@ interface Props {
 
 export default function InputBar({
   input, isLoading, isDark, handleInputChange, handleSubmit,
-}: Props) {
+}: InputBarProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -50,18 +50,13 @@ export default function InputBar({
             }}
           />
 
-          {/* Character Count */}
           {input.length > 0 && (
             <span className={`text-xs shrink-0 self-end mb-1
-              ${input.length > 3000
-                ? "text-red-400"
-                : isDark ? "text-gray-600" : "text-gray-400"
-              }`}>
+              ${input.length > 3000 ? "text-red-400" : isDark ? "text-gray-600" : "text-gray-400"}`}>
               {input.length}
             </span>
           )}
 
-          {/* Send Button */}
           <button
             type="submit"
             disabled={isLoading || !input.trim()}
@@ -69,8 +64,7 @@ export default function InputBar({
               hover:from-violet-500 hover:to-purple-600
               disabled:opacity-30 disabled:cursor-not-allowed
               flex items-center justify-center transition-all shrink-0
-              shadow-lg shadow-violet-900/30 hover:shadow-violet-500/30
-              hover:scale-105 active:scale-95"
+              shadow-lg shadow-violet-900/30 hover:scale-105 active:scale-95"
           >
             {isLoading ? (
               <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
