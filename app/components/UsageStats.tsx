@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef, useEffect, useState } from "react";
 import { storage } from "@/app/lib/storage";
 
 export default function UsageStats({
@@ -10,12 +11,22 @@ export default function UsageStats({
   onToggle: () => void;
   onClose: () => void;
 }) {
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
   const settings = storage.getSettings();
   const chats = storage.getChats();
+
+  useEffect(() => {
+    if (isOpen && btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect();
+      setPos({ top: rect.bottom + 8, left: rect.left });
+    }
+  }, [isOpen]);
 
   return (
     <div className="relative">
       <button
+        ref={btnRef}
         onClick={onToggle}
         className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs
           transition-all border
@@ -32,14 +43,16 @@ export default function UsageStats({
       {isOpen && (
         <>
           <div className="fixed inset-0 z-40" onClick={onClose} />
-          <div className={`absolute top-10 right-0 rounded-2xl shadow-2xl z-50
-            p-4 border min-w-[220px]
-            ${isDark
-              ? "bg-gray-900/95 border-white/10 backdrop-blur-xl"
-              : "bg-white border-gray-200 shadow-xl"
-            }`}>
-
-            <h3 className={`font-bold text-sm mb-3 ${isDark ? "text-white" : "text-gray-900"}`}>
+          <div
+            className={`fixed z-50 rounded-2xl shadow-2xl p-4 border min-w-[220px]
+              ${isDark
+                ? "bg-[#0d0d1a] border-white/10"
+                : "bg-white border-gray-200"
+              }`}
+            style={{ top: pos.top, left: Math.max(pos.left - 100, 8) }}
+          >
+            <h3 className={`font-bold text-sm mb-3
+              ${isDark ? "text-white" : "text-gray-900"}`}>
               📊 Usage Stats
             </h3>
 
@@ -72,7 +85,10 @@ export default function UsageStats({
                 onClose();
               }}
               className={`mt-3 w-full text-xs py-1.5 rounded-lg transition-all
-                ${isDark ? "text-red-400 hover:bg-red-400/10" : "text-red-500 hover:bg-red-50"}`}
+                ${isDark
+                  ? "text-red-400 hover:bg-red-400/10"
+                  : "text-red-500 hover:bg-red-50"
+                }`}
             >
               Reset Stats
             </button>
