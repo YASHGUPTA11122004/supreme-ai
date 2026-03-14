@@ -15,35 +15,36 @@ interface Props {
   systemPrompt: string;
   onSystemPromptChange: (p: string) => void;
   soundEnabled: boolean;
+  selectedModel: string;
+  userName: string;
 }
-
-const WELCOME: Message = {
-  id: "welcome",
-  role: "assistant",
-  content: "👑 **SupremeAI online.** I am above all. Ask me anything — code, architecture, debugging, system design. I dominate every problem.",
-  timestamp: new Date(),
-};
 
 export default function ChatWindow({
   isDark, currentChatId, onChatUpdate,
-  systemPrompt, onSystemPromptChange, soundEnabled,
+  systemPrompt, onSystemPromptChange,
+  soundEnabled, selectedModel, userName,
 }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
-  const [messages, setMessages] = useState<Message[]>([WELCOME]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
 
-  // Load chat from storage
+  const getWelcome = (): Message => ({
+    id: "welcome",
+    role: "assistant",
+    content: `👑 **SupremeAI online.** ${userName ? `Welcome back, **${userName}**!` : ""} I am above all. Ask me anything — code, architecture, debugging, system design. I dominate every problem.`,
+    timestamp: new Date(),
+  });
+
   useEffect(() => {
     const chats = storage.getChats();
     const found = chats.find(c => c.id === currentChatId);
-    if (found) setMessages(found.messages);
-    else setMessages([WELCOME]);
+    if (found && found.messages.length > 0) setMessages(found.messages);
+    else setMessages([getWelcome()]);
   }, [currentChatId]);
 
-  // Save chat to storage
   const saveChat = useCallback((msgs: Message[]) => {
     const title = msgs.find(m => m.role === "user")?.content.slice(0, 40) || "New Chat";
     const chat: Chat = {
@@ -57,8 +58,7 @@ export default function ChatWindow({
     onChatUpdate(chat);
   }, [currentChatId, onChatUpdate]);
 
-  const scrollToBottom = () =>
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  const scrollToBottom = () => bottomRef.current?.scrollIntoView({ behavior: "smooth" });
 
   useEffect(() => { scrollToBottom(); }, [messages]);
 
@@ -67,7 +67,10 @@ export default function ChatWindow({
     setShowScrollBtn(el.scrollHeight - el.scrollTop - el.clientHeight > 150);
   };
 
-  const sendMessages = async (msgs: Message[]) => {
+  const sendMessages = async (
+    msgs: Message[],
+    imageData?: { base64: string; mimeType: string }
+  ) => {
     setIsLoading(true);
     setIsStreaming(true);
     if (soundEnabled) playSound("send");
@@ -79,8 +82,7 @@ export default function ChatWindow({
       timestamp: new Date(),
     };
 
-    const withAssistant = [...msgs, assistantMsg];
-    setMessages(withAssistant);
+    setMessages([...msgs, assistantMsg]);
 
     try {
       const res = await fetch("/api/chat", {
@@ -89,6 +91,8 @@ export default function ChatWindow({
         body: JSON.stringify({
           messages: msgs.map(m => ({ role: m.role, content: m.content })),
           systemPrompt,
+          model: selectedModel,
+          imageData,
         }),
       });
 
@@ -123,6 +127,7 @@ export default function ChatWindow({
       if (soundEnabled) playSound("receive");
       const final = [...msgs, { ...assistantMsg, content: fullText }];
       saveChat(final);
+      storage.incrementStats(Math.floor(fullText.length / 4));
     } catch {
       if (soundEnabled) playSound("error");
       setMessages(prev => {
@@ -136,21 +141,25 @@ export default function ChatWindow({
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (
+    e: React.FormEvent,
+    imageData?: { base64: string; mimeType: string }
+  ) => {
     e.preventDefault();
-    if (!input.trim() || isLoading) return;
+    if ((!input.trim() && !imageData) || isLoading) return;
 
     const userMsg: Message = {
       id: Date.now().toString(),
       role: "user",
-      content: input.trim(),
+      content: input.trim() || "Analyze this image",
       timestamp: new Date(),
+      imageUrl: imageData ? `data:${imageData.mimeType};base64,${imageData.base64}` : undefined,
     };
 
     const updated = [...messages, userMsg];
     setMessages(updated);
     setInput("");
-    await sendMessages(updated);
+    await sendMessages(updated, imageData);
   };
 
   const handleEdit = async (id: string, newContent: string) => {
@@ -173,29 +182,21 @@ export default function ChatWindow({
     await sendMessages(trimmed);
   };
 
-  const handleClearChat = () => {
-    setMessages([{
-      ...WELCOME,
-      id: Date.now().toString(),
-      timestamp: new Date(),
-    }]);
-  };
-
   const showSuggestions = messages.length <= 1;
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden relative">
       {/* Toolbar */}
-      <div className={`flex items-center justify-between px-4 py-2 border-b
+      <div className={`flex items-center justify-between px-4 py-2 border-b shrink-0
         ${isDark ? "border-purple-900/20" : "border-purple-200/30"}`}>
-        <div className={`text-xs ${isDark ? "text-gray-600" : "text-gray-400"}`}>
+        <span className={`text-xs ${isDark ? "text-gray-600" : "text-gray-400"}`}>
           {messages.length - 1} messages
-        </div>
+        </span>
         <div className="flex items-center gap-2">
           <ExportChat messages={messages} isDark={isDark} />
           <button
-            onClick={handleClearChat}
-            className={`text-xs px-3 py-1.5 rounded-lg transition-all flex items-center gap-1
+            onClick={() => setMessages([getWelcome()])}
+            className={`text-xs px-3 py-1.5 rounded-lg transition-all
               ${isDark
                 ? "text-gray-500 hover:text-red-400 hover:bg-red-400/10"
                 : "text-gray-400 hover:text-red-500 hover:bg-red-50"
@@ -206,13 +207,10 @@ export default function ChatWindow({
         </div>
       </div>
 
-      {/* Messages or Suggestions */}
+      {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4" onScroll={handleScroll}>
         {showSuggestions ? (
-          <PromptSuggestions
-            isDark={isDark}
-            onSelect={prompt => setInput(prompt)}
-          />
+          <PromptSuggestions isDark={isDark} onSelect={p => setInput(p)} />
         ) : (
           messages.map((msg, i) => (
             <MessageBubble
@@ -224,8 +222,7 @@ export default function ChatWindow({
               isStreaming={isStreaming}
               onRegenerate={
                 msg.role === "assistant" && i === messages.length - 1
-                  ? handleRegenerate
-                  : undefined
+                  ? handleRegenerate : undefined
               }
             />
           ))
@@ -233,17 +230,14 @@ export default function ChatWindow({
         <div ref={bottomRef} />
       </div>
 
-      {/* Scroll Button */}
+      {/* Scroll Btn */}
       {showScrollBtn && (
         <button
           onClick={scrollToBottom}
           className="absolute bottom-28 right-6 w-9 h-9 rounded-full
             bg-violet-600 hover:bg-violet-500 text-white shadow-xl
-            flex items-center justify-center transition-all animate-fadeIn
-            hover:scale-110"
-        >
-          ↓
-        </button>
+            flex items-center justify-center transition-all animate-fadeIn hover:scale-110"
+        >↓</button>
       )}
 
       <InputBar
