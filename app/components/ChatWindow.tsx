@@ -1,99 +1,117 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import MessageBubble from "./MessageBubble";
 import InputBar from "./InputBar";
+import PromptSuggestions from "./PromptSuggestions";
+import ExportChat from "./ExportChat";
+import { storage, type Message, type Chat } from "@/app/lib/storage";
+import { playSound } from "@/app/lib/sounds";
 
-interface Message {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  timestamp: Date;
+interface Props {
+  isDark: boolean;
+  currentChatId: string;
+  onChatUpdate: (chat: Chat) => void;
+  systemPrompt: string;
+  onSystemPromptChange: (p: string) => void;
+  soundEnabled: boolean;
 }
 
-export default function ChatWindow({ isDark }: { isDark: boolean }) {
+const WELCOME: Message = {
+  id: "welcome",
+  role: "assistant",
+  content: "👑 **SupremeAI online.** I am above all. Ask me anything — code, architecture, debugging, system design. I dominate every problem.",
+  timestamp: new Date(),
+};
+
+export default function ChatWindow({
+  isDark, currentChatId, onChatUpdate,
+  systemPrompt, onSystemPromptChange, soundEnabled,
+}: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "welcome",
-      role: "assistant",
-      content: "👑 **SupremeAI online.** I am above all. Ask me anything — code, architecture, debugging, system design. I dominate every problem.",
-      timestamp: new Date(),
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([WELCOME]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
 
-  const scrollToBottom = () => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
+  // Load chat from storage
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    const chats = storage.getChats();
+    const found = chats.find(c => c.id === currentChatId);
+    if (found) setMessages(found.messages);
+    else setMessages([WELCOME]);
+  }, [currentChatId]);
+
+  // Save chat to storage
+  const saveChat = useCallback((msgs: Message[]) => {
+    const title = msgs.find(m => m.role === "user")?.content.slice(0, 40) || "New Chat";
+    const chat: Chat = {
+      id: currentChatId,
+      title,
+      messages: msgs,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    storage.saveChat(chat);
+    onChatUpdate(chat);
+  }, [currentChatId, onChatUpdate]);
+
+  const scrollToBottom = () =>
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+
+  useEffect(() => { scrollToBottom(); }, [messages]);
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const el = e.currentTarget;
-    const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 100;
-    setShowScrollBtn(!isNearBottom);
+    setShowScrollBtn(el.scrollHeight - el.scrollTop - el.clientHeight > 150);
   };
 
-  const handleSubmit = async (e: React.FormEvent, editedMessages?: Message[]) => {
-    e.preventDefault();
-    const currentMessages = editedMessages || messages;
-    if (!input.trim() && !editedMessages || isLoading) return;
-
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: "user",
-      content: input,
-      timestamp: new Date(),
-    };
-
-    const updatedMessages = editedMessages || [...currentMessages, userMessage];
-    if (!editedMessages) {
-      setMessages(updatedMessages);
-      setInput("");
-    }
+  const sendMessages = async (msgs: Message[]) => {
     setIsLoading(true);
+    setIsStreaming(true);
+    if (soundEnabled) playSound("send");
 
-    const assistantMessage: Message = {
-      id: (Date.now() + 1).toString(),
+    const assistantMsg: Message = {
+      id: Date.now().toString(),
       role: "assistant",
       content: "",
       timestamp: new Date(),
     };
-    setMessages((prev) => [...prev, assistantMessage]);
+
+    const withAssistant = [...msgs, assistantMsg];
+    setMessages(withAssistant);
 
     try {
-      const response = await fetch("/api/chat", {
+      const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages: updatedMessages.map((m) => ({
-            role: m.role,
-            content: m.content,
-          })),
+          messages: msgs.map(m => ({ role: m.role, content: m.content })),
+          systemPrompt,
         }),
       });
 
-      const reader = response.body?.getReader();
+      const reader = res.body?.getReader();
       const decoder = new TextDecoder();
+      let fullText = "";
 
       while (true) {
         const { done, value } = await reader!.read();
         if (done) break;
-        const chunk = decoder.decode(value);
-        const lines = chunk.split("\n");
+        const lines = decoder.decode(value).split("\n");
         for (const line of lines) {
           if (line.startsWith("data: ") && line !== "data: [DONE]") {
             try {
               const data = JSON.parse(line.slice(6));
               if (data.text) {
-                setMessages((prev) => {
+                fullText += data.text;
+                setMessages(prev => {
                   const updated = [...prev];
-                  updated[updated.length - 1].content += data.text;
+                  updated[updated.length - 1] = {
+                    ...updated[updated.length - 1],
+                    content: fullText,
+                  };
                   return updated;
                 });
               }
@@ -101,110 +119,128 @@ export default function ChatWindow({ isDark }: { isDark: boolean }) {
           }
         }
       }
+
+      if (soundEnabled) playSound("receive");
+      const final = [...msgs, { ...assistantMsg, content: fullText }];
+      saveChat(final);
     } catch {
-      setMessages((prev) => {
+      if (soundEnabled) playSound("error");
+      setMessages(prev => {
         const updated = [...prev];
         updated[updated.length - 1].content = "❌ Error aaya. Please try again.";
         return updated;
       });
     } finally {
       setIsLoading(false);
+      setIsStreaming(false);
     }
   };
 
-  const handleEdit = (id: string, newContent: string) => {
-    const idx = messages.findIndex((m) => m.id === id);
-    if (idx === -1) return;
-    const updated = messages.slice(0, idx + 1).map((m) =>
-      m.id === id ? { ...m, content: newContent } : m
-    );
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim() || isLoading) return;
+
+    const userMsg: Message = {
+      id: Date.now().toString(),
+      role: "user",
+      content: input.trim(),
+      timestamp: new Date(),
+    };
+
+    const updated = [...messages, userMsg];
     setMessages(updated);
-    const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
-    handleSubmit(fakeEvent, updated);
+    setInput("");
+    await sendMessages(updated);
   };
 
-  const handleRegenerate = () => {
-    const lastUserIdx = [...messages].reverse().findIndex((m) => m.role === "user");
+  const handleEdit = async (id: string, newContent: string) => {
+    const idx = messages.findIndex(m => m.id === id);
+    if (idx === -1) return;
+    const updated = [
+      ...messages.slice(0, idx),
+      { ...messages[idx], content: newContent },
+    ];
+    setMessages(updated);
+    await sendMessages(updated);
+  };
+
+  const handleRegenerate = async () => {
+    const lastUserIdx = [...messages].reverse().findIndex(m => m.role === "user");
     if (lastUserIdx === -1) return;
     const idx = messages.length - 1 - lastUserIdx;
     const trimmed = messages.slice(0, idx + 1);
     setMessages(trimmed);
-    const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
-    handleSubmit(fakeEvent, trimmed);
+    await sendMessages(trimmed);
   };
 
   const handleClearChat = () => {
     setMessages([{
-      id: "welcome",
-      role: "assistant",
-      content: "👑 **SupremeAI online.** Chat cleared. What can I dominate for you?",
+      ...WELCOME,
+      id: Date.now().toString(),
       timestamp: new Date(),
     }]);
   };
 
+  const showSuggestions = messages.length <= 1;
+
   return (
     <div className="flex flex-col flex-1 overflow-hidden relative">
-      {/* Clear Chat Button */}
-      <div className={`flex justify-end px-4 py-2 border-b
+      {/* Toolbar */}
+      <div className={`flex items-center justify-between px-4 py-2 border-b
         ${isDark ? "border-purple-900/20" : "border-purple-200/30"}`}>
-        <button
-          onClick={handleClearChat}
-          className={`text-xs px-3 py-1 rounded-full transition-all
-            ${isDark
-              ? "text-gray-500 hover:text-red-400 hover:bg-red-400/10"
-              : "text-gray-400 hover:text-red-500 hover:bg-red-50"
-            }`}
-        >
-          🗑️ Clear Chat
-        </button>
+        <div className={`text-xs ${isDark ? "text-gray-600" : "text-gray-400"}`}>
+          {messages.length - 1} messages
+        </div>
+        <div className="flex items-center gap-2">
+          <ExportChat messages={messages} isDark={isDark} />
+          <button
+            onClick={handleClearChat}
+            className={`text-xs px-3 py-1.5 rounded-lg transition-all flex items-center gap-1
+              ${isDark
+                ? "text-gray-500 hover:text-red-400 hover:bg-red-400/10"
+                : "text-gray-400 hover:text-red-500 hover:bg-red-50"
+              }`}
+          >
+            🗑️ Clear
+          </button>
+        </div>
       </div>
 
-      {/* Messages */}
-      <div
-        className="flex-1 overflow-y-auto p-4 space-y-4"
-        onScroll={handleScroll}
-      >
-        {messages.map((msg, i) => (
-          <MessageBubble
-            key={msg.id}
-            message={msg}
+      {/* Messages or Suggestions */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4" onScroll={handleScroll}>
+        {showSuggestions ? (
+          <PromptSuggestions
             isDark={isDark}
-            onEdit={handleEdit}
-            isLast={i === messages.length - 1}
-            onRegenerate={msg.role === "assistant" && i === messages.length - 1 ? handleRegenerate : undefined}
+            onSelect={prompt => setInput(prompt)}
           />
-        ))}
-
-        {/* Typing Indicator */}
-        {isLoading && messages[messages.length - 1]?.content === "" && (
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-600 to-purple-900 
-              flex items-center justify-center shrink-0">
-              <span className="text-white font-black text-xs">S</span>
-            </div>
-            <div className={`rounded-2xl px-4 py-3 ${isDark ? "bg-white/5" : "bg-white/70"}`}>
-              <div className="flex gap-1 items-center">
-                {[0, 1, 2].map((i) => (
-                  <div
-                    key={i}
-                    className="w-2 h-2 bg-violet-400 rounded-full dot-bounce"
-                    style={{ animationDelay: `${i * 0.16}s` }}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
+        ) : (
+          messages.map((msg, i) => (
+            <MessageBubble
+              key={msg.id}
+              message={msg}
+              isDark={isDark}
+              onEdit={handleEdit}
+              isLast={i === messages.length - 1}
+              isStreaming={isStreaming}
+              onRegenerate={
+                msg.role === "assistant" && i === messages.length - 1
+                  ? handleRegenerate
+                  : undefined
+              }
+            />
+          ))
         )}
         <div ref={bottomRef} />
       </div>
 
-      {/* Scroll to Bottom */}
+      {/* Scroll Button */}
       {showScrollBtn && (
         <button
           onClick={scrollToBottom}
-          className="absolute bottom-24 right-6 w-9 h-9 rounded-full 
-            bg-violet-600 hover:bg-violet-500 text-white shadow-lg
-            flex items-center justify-center transition-all animate-fadeIn"
+          className="absolute bottom-28 right-6 w-9 h-9 rounded-full
+            bg-violet-600 hover:bg-violet-500 text-white shadow-xl
+            flex items-center justify-center transition-all animate-fadeIn
+            hover:scale-110"
         >
           ↓
         </button>
@@ -214,7 +250,9 @@ export default function ChatWindow({ isDark }: { isDark: boolean }) {
         input={input}
         isLoading={isLoading}
         isDark={isDark}
-        handleInputChange={(e) => setInput(e.target.value)}
+        systemPrompt={systemPrompt}
+        onSystemPromptChange={onSystemPromptChange}
+        handleInputChange={e => setInput(e.target.value)}
         handleSubmit={handleSubmit}
       />
     </div>
