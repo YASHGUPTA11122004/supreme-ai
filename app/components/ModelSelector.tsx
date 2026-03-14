@@ -1,7 +1,5 @@
 "use client";
 
-import { useRef, useEffect, useState } from "react";
-
 const MODELS = [
   { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", desc: "Fastest", emoji: "⚡" },
   { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro", desc: "Most Powerful", emoji: "🧠" },
@@ -18,20 +16,10 @@ export default function ModelSelector({
   onToggle: () => void;
 }) {
   const current = MODELS.find(m => m.id === selected) || MODELS[0];
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const [pos, setPos] = useState({ top: 0, left: 0 });
-
-  useEffect(() => {
-    if (isOpen && btnRef.current) {
-      const rect = btnRef.current.getBoundingClientRect();
-      setPos({ top: rect.bottom + 8, left: rect.left });
-    }
-  }, [isOpen]);
 
   return (
-    <div className="relative">
+    <div className="relative z-50">
       <button
-        ref={btnRef}
         onClick={onToggle}
         className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs
           transition-all border font-medium
@@ -50,23 +38,17 @@ export default function ModelSelector({
       {isOpen && (
         <>
           <div className="fixed inset-0 z-40" onClick={onToggle} />
-          <div
-            className={`fixed z-50 rounded-xl shadow-2xl min-w-[220px]
-              overflow-hidden border
-              ${isDark
-                ? "bg-[#0d0d1a] border-white/10"
-                : "bg-white border-gray-200"
-              }`}
-            style={{ top: pos.top, left: pos.left }}
+          <div className={`absolute top-10 left-0 rounded-xl shadow-2xl z-50
+            min-w-[220px] overflow-hidden border
+            ${isDark ? "bg-[#111122] border-violet-900/50" : "bg-white border-gray-200"}`}
           >
             {MODELS.map(model => (
               <button
                 key={model.id}
                 onClick={() => { onChange(model.id); onToggle(); }}
-                className={`w-full text-left px-4 py-3 transition-all
-                  flex items-center gap-3
+                className={`w-full text-left px-4 py-3 transition-all flex items-center gap-3
                   ${selected === model.id
-                    ? isDark ? "bg-violet-600/30 text-violet-300" : "bg-violet-50 text-violet-700"
+                    ? isDark ? "bg-violet-600/20 text-violet-300" : "bg-violet-50 text-violet-700"
                     : isDark ? "text-gray-300 hover:bg-white/5" : "text-gray-700 hover:bg-gray-50"
                   }`}
               >
@@ -77,9 +59,7 @@ export default function ModelSelector({
                     {model.desc}
                   </div>
                 </div>
-                {selected === model.id && (
-                  <span className="ml-auto text-violet-400">✓</span>
-                )}
+                {selected === model.id && <span className="ml-auto text-violet-400">✓</span>}
               </button>
             ))}
           </div>
