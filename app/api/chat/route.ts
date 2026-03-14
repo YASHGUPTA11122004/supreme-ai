@@ -13,14 +13,11 @@ export async function POST(req: Request) {
     systemInstruction: SYSTEM_PROMPT,
   });
 
-  // Welcome message filter karo — sirf user/assistant messages lo
   const filtered = messages.filter((m: any) => m.role !== "system");
 
-  // Pehla message user ka hona chahiye — assistant messages skip karo start mein
   const firstUserIndex = filtered.findIndex((m: any) => m.role === "user");
   const validMessages = firstUserIndex >= 0 ? filtered.slice(firstUserIndex) : filtered;
 
-  // History = last message chhod ke baaki sab
   const history = validMessages.slice(0, -1).map((msg: any) => ({
     role: msg.role === "assistant" ? "model" : "user",
     parts: [{ text: msg.content }],
@@ -55,4 +52,3 @@ export async function POST(req: Request) {
     },
   });
 }
-// hi
