@@ -1,33 +1,43 @@
 "use client";
 
-import { useState } from "react";
 import { storage } from "@/app/lib/storage";
 
-export default function UsageStats({ isDark }: { isDark: boolean }) {
-  const [open, setOpen] = useState(false);
+export default function UsageStats({
+  isDark, isOpen, onToggle, onClose,
+}: {
+  isDark: boolean;
+  isOpen: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+}) {
   const settings = storage.getSettings();
   const chats = storage.getChats();
 
   return (
     <div className="relative">
       <button
-        onClick={() => setOpen(!open)}
+        onClick={onToggle}
         className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs
           transition-all border
-          ${isDark
-            ? "border-white/10 bg-white/5 hover:bg-white/10 text-gray-300"
-            : "border-gray-200 bg-white/80 hover:bg-gray-50 text-gray-700"
+          ${isOpen
+            ? "border-violet-500 bg-violet-500/10 text-violet-300"
+            : isDark
+              ? "border-white/10 bg-white/5 hover:bg-white/10 text-gray-300"
+              : "border-gray-200 bg-white/80 hover:bg-gray-50 text-gray-700"
           }`}
       >
-        📊 Stats
+        📊 <span className="hidden sm:inline">Stats</span>
       </button>
 
-      {open && (
+      {isOpen && (
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className={`absolute top-9 right-0 rounded-2xl shadow-2xl z-50
-            p-4 border animate-fadeIn min-w-[220px]
-            ${isDark ? "glass-dark border-white/10" : "glass-light border-gray-200"}`}>
+          <div className="fixed inset-0 z-40" onClick={onClose} />
+          <div className={`absolute top-10 right-0 rounded-2xl shadow-2xl z-50
+            p-4 border min-w-[220px]
+            ${isDark
+              ? "bg-gray-900/95 border-white/10 backdrop-blur-xl"
+              : "bg-white border-gray-200 shadow-xl"
+            }`}>
 
             <h3 className={`font-bold text-sm mb-3 ${isDark ? "text-white" : "text-gray-900"}`}>
               📊 Usage Stats
@@ -59,13 +69,10 @@ export default function UsageStats({ isDark }: { isDark: boolean }) {
             <button
               onClick={() => {
                 storage.saveSettings({ totalMessages: 0, totalTokens: 0 });
-                setOpen(false);
+                onClose();
               }}
               className={`mt-3 w-full text-xs py-1.5 rounded-lg transition-all
-                ${isDark
-                  ? "text-red-400 hover:bg-red-400/10"
-                  : "text-red-500 hover:bg-red-50"
-                }`}
+                ${isDark ? "text-red-400 hover:bg-red-400/10" : "text-red-500 hover:bg-red-50"}`}
             >
               Reset Stats
             </button>
