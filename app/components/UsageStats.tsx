@@ -1,6 +1,5 @@
 "use client";
 
-import { useRef, useEffect, useState } from "react";
 import { storage } from "@/app/lib/storage";
 
 export default function UsageStats({
@@ -11,22 +10,12 @@ export default function UsageStats({
   onToggle: () => void;
   onClose: () => void;
 }) {
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const [pos, setPos] = useState({ top: 0, left: 0 });
   const settings = storage.getSettings();
   const chats = storage.getChats();
 
-  useEffect(() => {
-    if (isOpen && btnRef.current) {
-      const rect = btnRef.current.getBoundingClientRect();
-      setPos({ top: rect.bottom + 8, left: rect.left });
-    }
-  }, [isOpen]);
-
   return (
-    <div className="relative">
+    <div className="relative z-50">
       <button
-        ref={btnRef}
         onClick={onToggle}
         className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs
           transition-all border
@@ -43,19 +32,13 @@ export default function UsageStats({
       {isOpen && (
         <>
           <div className="fixed inset-0 z-40" onClick={onClose} />
-          <div
-            className={`fixed z-50 rounded-2xl shadow-2xl p-4 border min-w-[220px]
-              ${isDark
-                ? "bg-[#0d0d1a] border-white/10"
-                : "bg-white border-gray-200"
-              }`}
-            style={{ top: pos.top, left: Math.max(pos.left - 100, 8) }}
+          <div className={`absolute top-10 right-0 rounded-2xl shadow-2xl z-50
+            p-4 border min-w-[220px]
+            ${isDark ? "bg-[#111122] border-violet-900/50" : "bg-white border-gray-200"}`}
           >
-            <h3 className={`font-bold text-sm mb-3
-              ${isDark ? "text-white" : "text-gray-900"}`}>
+            <h3 className={`font-bold text-sm mb-3 ${isDark ? "text-white" : "text-gray-900"}`}>
               📊 Usage Stats
             </h3>
-
             <div className="space-y-3">
               {[
                 { label: "Total Chats", value: chats.length, emoji: "💬" },
@@ -64,31 +47,21 @@ export default function UsageStats({
                 { label: "Current Model", value: settings.selectedModel.split("-").slice(1).join(" "), emoji: "🤖" },
                 { label: "Active Persona", value: settings.selectedPersona, emoji: "🎭" },
               ].map((stat, i) => (
-                <div key={i} className={`flex items-center justify-between
-                  pb-2 border-b last:border-0
+                <div key={i} className={`flex items-center justify-between pb-2 border-b last:border-0
                   ${isDark ? "border-white/5" : "border-gray-100"}`}>
-                  <span className={`text-xs flex items-center gap-1
-                    ${isDark ? "text-gray-400" : "text-gray-500"}`}>
+                  <span className={`text-xs flex items-center gap-1 ${isDark ? "text-gray-400" : "text-gray-500"}`}>
                     {stat.emoji} {stat.label}
                   </span>
-                  <span className={`text-xs font-bold
-                    ${isDark ? "text-white" : "text-gray-900"}`}>
+                  <span className={`text-xs font-bold ${isDark ? "text-white" : "text-gray-900"}`}>
                     {stat.value}
                   </span>
                 </div>
               ))}
             </div>
-
             <button
-              onClick={() => {
-                storage.saveSettings({ totalMessages: 0, totalTokens: 0 });
-                onClose();
-              }}
+              onClick={() => { storage.saveSettings({ totalMessages: 0, totalTokens: 0 }); onClose(); }}
               className={`mt-3 w-full text-xs py-1.5 rounded-lg transition-all
-                ${isDark
-                  ? "text-red-400 hover:bg-red-400/10"
-                  : "text-red-500 hover:bg-red-50"
-                }`}
+                ${isDark ? "text-red-400 hover:bg-red-400/10" : "text-red-500 hover:bg-red-50"}`}
             >
               Reset Stats
             </button>
