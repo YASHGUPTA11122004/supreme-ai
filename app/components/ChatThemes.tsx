@@ -38,32 +38,33 @@ export default function ChatThemes({
         <>
           <div className="fixed inset-0 z-40" onClick={onToggle} />
           <div className={`absolute top-10 right-0 rounded-xl shadow-2xl z-50
-            p-3 border
+            p-3 border w-48
             ${isDark
-              ? "bg-gray-900/95 border-white/10 backdrop-blur-xl"
+              ? "bg-gray-950 border-white/10"
               : "bg-white border-gray-200 shadow-xl"
             }`}>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               {THEMES.map(theme => (
                 <button
                   key={theme.id}
                   onClick={() => { onChange(theme.id); onToggle(); }}
-                  className={`flex flex-col items-center gap-1 p-2 rounded-xl
-                    transition-all hover:scale-105
+                  className={`flex items-center gap-2 p-2 rounded-xl
+                    transition-all hover:scale-105 w-full
                     ${selected === theme.id
                       ? isDark ? "bg-white/10" : "bg-gray-100"
-                      : "hover:bg-white/5"
+                      : isDark ? "hover:bg-white/5" : "hover:bg-gray-50"
                     }`}
                 >
                   <div
-                    className="w-8 h-8 rounded-lg shadow-md"
+                    className="w-5 h-5 rounded-md shrink-0"
                     style={{ background: theme.primary }}
                   />
-                  <span className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}>
+                  <span className={`text-xs truncate
+                    ${isDark ? "text-gray-300" : "text-gray-600"}`}>
                     {theme.name}
                   </span>
                   {selected === theme.id && (
-                    <span className="text-xs text-violet-400">✓</span>
+                    <span className="text-xs text-violet-400 ml-auto">✓</span>
                   )}
                 </button>
               ))}
