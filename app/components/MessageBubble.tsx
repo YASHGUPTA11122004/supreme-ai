@@ -3,6 +3,7 @@
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import CodeBlock from "./CodeBlock";
+import TextToSpeech from "./TextToSpeech";
 import type { Message } from "@/app/lib/storage";
 
 interface Props {
@@ -200,6 +201,11 @@ export default function MessageBubble({
             </button>
           )}
 
+          {/* ✅ TextToSpeech — Naya Add Kiya */}
+          {!isUser && (
+            <TextToSpeech text={message.content} isDark={isDark} />
+          )}
+
           <div className="relative">
             <button
               onClick={() => setShowReactions(!showReactions)}
@@ -251,3 +257,4 @@ export default function MessageBubble({
     </div>
   );
 }
+Line ~145 → TextToSpeech component add kiya ✅
