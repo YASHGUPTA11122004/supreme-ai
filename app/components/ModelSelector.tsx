@@ -81,10 +81,3 @@ export default function ModelSelector({
     </div>
   );
 }
-```
-
----
-
-## Commit Karo:
-```
-app/components/ModelSelector.tsx ← REPLACE
