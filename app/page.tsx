@@ -7,11 +7,10 @@ import ThemeToggle from "./components/ThemeToggle";
 import Sidebar from "./components/Sidebar";
 import WelcomeScreen from "./components/WelcomeScreen";
 import ModelSelector from "./components/ModelSelector";
-import PersonaSelector from "./components/PersonaSelector";
+import PersonaSelector, { PERSONAS } from "./components/PersonaSelector";
 import ChatThemes from "./components/ChatThemes";
 import UsageStats from "./components/UsageStats";
 import { storage, type Chat } from "./lib/storage";
-import { PERSONAS } from "./components/PersonaSelector";
 
 export default function Home() {
   const [isDark, setIsDark] = useState(true);
@@ -27,15 +26,13 @@ export default function Home() {
   const [chatTheme, setChatTheme] = useState("purple");
   const [systemPrompt, setSystemPrompt] = useState(PERSONAS[0].prompt);
   const [mounted, setMounted] = useState(false);
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
     const user = storage.getUser();
-    if (!user) {
-      setShowWelcome(true);
-    } else {
-      setUserName(user.name);
-    }
+    if (!user) setShowWelcome(true);
+    else setUserName(user.name);
     const settings = storage.getSettings();
     setIsDark(settings.theme === "dark");
     setSoundEnabled(settings.sound);
@@ -46,6 +43,10 @@ export default function Home() {
     if (persona) setSystemPrompt(persona.prompt);
     setChats(storage.getChats());
   }, []);
+
+  const toggleDropdown = (name: string) => {
+    setActiveDropdown(prev => prev === name ? null : name);
+  };
 
   const handleWelcomeComplete = (name: string) => {
     setUserName(name);
@@ -107,12 +108,10 @@ export default function Home() {
 
       <AnimatedBackground isDark={isDark} />
 
-      {/* Welcome Screen */}
       {showWelcome && (
         <WelcomeScreen onComplete={handleWelcomeComplete} isDark={isDark} />
       )}
 
-      {/* Sidebar */}
       <Sidebar
         chats={chats}
         currentChatId={currentChatId}
@@ -128,10 +127,7 @@ export default function Home() {
         onSearchChange={setSearchQuery}
       />
 
-      {/* Main */}
       <div className="flex flex-col flex-1 overflow-hidden relative z-10 min-w-0">
-
-        {/* Header */}
         <header className={`border-b px-4 py-3 flex items-center gap-2
           backdrop-blur-xl transition-all shrink-0 flex-wrap
           ${isDark
@@ -161,12 +157,34 @@ export default function Home() {
             )}
           </div>
 
-          {/* Controls */}
           <div className="flex items-center gap-2 ml-auto flex-wrap justify-end">
-            <ModelSelector selected={selectedModel} onChange={handleModelChange} isDark={isDark} />
-            <PersonaSelector selected={selectedPersona} onChange={handlePersonaChange} isDark={isDark} />
-            <ChatThemes selected={chatTheme} onChange={handleThemeChange} isDark={isDark} />
-            <UsageStats isDark={isDark} />
+            <ModelSelector
+              selected={selectedModel}
+              onChange={handleModelChange}
+              isDark={isDark}
+              isOpen={activeDropdown === "model"}
+              onToggle={() => toggleDropdown("model")}
+            />
+            <PersonaSelector
+              selected={selectedPersona}
+              onChange={handlePersonaChange}
+              isDark={isDark}
+              isOpen={activeDropdown === "persona"}
+              onToggle={() => toggleDropdown("persona")}
+            />
+            <ChatThemes
+              selected={chatTheme}
+              onChange={handleThemeChange}
+              isDark={isDark}
+              isOpen={activeDropdown === "theme"}
+              onToggle={() => toggleDropdown("theme")}
+            />
+            <UsageStats
+              isDark={isDark}
+              isOpen={activeDropdown === "stats"}
+              onToggle={() => toggleDropdown("stats")}
+              onClose={() => setActiveDropdown(null)}
+            />
 
             <button
               onClick={() => setSoundEnabled(!soundEnabled)}
